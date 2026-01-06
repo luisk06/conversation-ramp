@@ -1,14 +1,226 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>Conversation Ramp</title>
+  <meta name="description" content="Start a conversation without the awkward beginning." />
+  <style>
+    :root{
+      --bg:#0b0d12;
+      --card:#121724;
+      --text:#e9edf7;
+      --muted:#aab3c5;
+      --btn:#1c2740;
+      --btn2:#1b2f24;
+      --accent:#7aa2ff;
+      --radius:18px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+      background: radial-gradient(1200px 800px at 50% -20%, #1a2350 0%, var(--bg) 55%);
+      color:var(--text);
+      min-height:100vh;
+      display:flex;
+      justify-content:center;
+      padding:16px;
+    }
+    .wrap{
+      width:min(680px,100%);
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
+    header{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+    }
+    .pill{
+      font-size:12px;
+      border:1px solid rgba(255,255,255,.15);
+      padding:6px 10px;
+      border-radius:999px;
+      color:var(--muted);
+    }
+    .card{
+      background:rgba(18,23,36,.92);
+      border:1px solid rgba(255,255,255,.1);
+      border-radius:var(--radius);
+      padding:16px;
+    }
+    h1{font-size:20px;margin:0 0 8px}
+    p{color:var(--muted);line-height:1.45}
+    .q{font-size:18px;margin:10px 0}
+    .btnRow{
+      display:grid;
+      grid-template-columns:1fr;
+      gap:10px;
+    }
+    @media(min-width:520px){
+      .btnRow{grid-template-columns:1fr 1fr}
+    }
+    button{
+      padding:14px;
+      border-radius:16px;
+      border:none;
+      background:var(--btn);
+      color:var(--text);
+      font-size:16px;
+      font-weight:600;
+      cursor:pointer;
+    }
+    .ghost{
+      background:transparent;
+      border:1px solid rgba(255,255,255,.15);
+      color:var(--muted);
+      font-size:14px;
+      padding:10px 12px;
+      border-radius:999px;
+    }
+    .box{
+      background:rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.1);
+      border-radius:16px;
+      padding:12px;
+      margin-bottom:12px;
+    }
+    .mono{
+      font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+      font-size:14px;
+    }
+    footer{
+      text-align:center;
+      font-size:12px;
+      color:rgba(170,179,197,.75);
+      margin-top:6px;
+    }
+  </style>
 </head>
+
 <body>
-  <main>
-    <h1>Conversation Ramp</h1>
-    <p>Starter page.</p>
-  </main>
+<div class="wrap">
+  <header>
+    <strong>Conversation Ramp</strong>
+    <div class="pill" id="stepPill">Ready</div>
+  </header>
+
+  <main class="card" id="app"></main>
+
+  <footer>
+    No accounts. No streaks. Just a gentle start.
+  </footer>
+</div>
+
+<script>
+const QUESTIONS = [
+  ["Blue or red?", "Blue", "Red"],
+  ["Morning or night?", "Morning", "Night"],
+  ["Indoor or outdoor?", "Indoor", "Outdoor"],
+  ["Cold winter or hot summer?", "Cold winter", "Hot summer"],
+  ["Quiet hangout or lively hangout?", "Quiet", "Lively"],
+  ["Plan a little or improvise?", "Plan", "Improvise"],
+  ["Deep talk or light talk?", "Deep", "Light"],
+  ["Text first or voice first?", "Text", "Voice"]
+];
+
+const state = { step: 0, answers: [] };
+const app = document.getElementById("app");
+const stepPill = document.getElementById("stepPill");
+
+function renderStart(){
+  stepPill.textContent = "8 quick taps";
+  app.innerHTML = `
+    <h1>Start a conversation without the awkward beginning</h1>
+    <p>Answer 8 simple A/B questions. We’ll generate a few lines in your style.  
+    You can copy one and take the wheel immediately.</p>
+    <button class="ghost" onclick="start()">Start</button>
+  `;
+}
+
+function start(){
+  state.step = 0;
+  state.answers = [];
+  renderQuestion();
+}
+
+function renderQuestion(){
+  const [q,a,b] = QUESTIONS[state.step];
+  stepPill.textContent = \`\${state.step+1}/\${QUESTIONS.length}\`;
+  app.innerHTML = `
+    <div class="q">${q}</div>
+    <div class="btnRow">
+      <button onclick="answer('${a}')">${a}</button>
+      <button onclick="answer('${b}')">${b}</button>
+    </div>
+    <button class="ghost" onclick="start()">Restart</button>
+  `;
+}
+
+function answer(choice){
+  const q = QUESTIONS[state.step][0];
+  state.answers.push(\`\${q} -> \${choice}\`);
+  state.step++;
+  if(state.step >= QUESTIONS.length){
+    renderResult();
+  } else {
+    renderQuestion();
+  }
+}
+
+async function fetchAIResults(payload){
+  const res = await fetch("/api/ramp", {
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify(payload)
+  });
+  return await res.json();
+}
+
+async function renderResult(){
+  stepPill.textContent = "Done";
+  app.innerHTML = "<p>Generating your conversation ramp…</p>";
+
+  let data;
+  try{
+    data = await fetchAIResults({
+      answers: state.answers,
+      context: "new_friend",
+      language: "en"
+    });
+  } catch {
+    data = {
+      openers:["Hey — no rush, just wanted to say hi."],
+      followups:["How’s your day going?"],
+      handoff:"Your turn whenever."
+    };
+  }
+
+  app.innerHTML = `
+    <h1>Your conversation ramp</h1>
+
+    <div class="box mono">
+      <strong>Openers</strong><br/>
+      ${data.openers.map(o=>`• ${o}`).join("<br/>")}
+    </div>
+
+    <div class="box mono">
+      <strong>Follow-ups</strong><br/>
+      ${data.followups.map(f=>`• ${f}`).join("<br/>")}
+    </div>
+
+    <div class="box mono">
+      <strong>Handoff</strong><br/>
+      • ${data.handoff}
+    </div>
+
+    <button class="ghost" onclick="start()">Try again</button>
+  `;
+}
+
+renderStart();
+</script>
 </body>
 </html>
