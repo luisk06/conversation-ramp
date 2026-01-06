@@ -41,7 +41,7 @@ Return a JSON object with exactly these keys:
     };
 
     const response = await client.responses.create({
-      model: "gpt-5",
+      model: "gpt-5-mini",
       instructions,
       input: JSON.stringify(input),
       text: { format: { type: "json_object" } }
