@@ -148,7 +148,7 @@ function start(){
 
 function renderQuestion(){
   const [q,a,b] = QUESTIONS[state.step];
-  stepPill.textContent = \`\${state.step+1}/\${QUESTIONS.length}\`;
+  stepPill.textContent = `${state.step+1}/${QUESTIONS.length}`;
   app.innerHTML = `
     <div class="q">${q}</div>
     <div class="btnRow">
@@ -161,7 +161,7 @@ function renderQuestion(){
 
 function answer(choice){
   const q = QUESTIONS[state.step][0];
-  state.answers.push(\`\${q} -> \${choice}\`);
+  state.answers.push(`${q} -> ${choice}`);
   state.step++;
   if(state.step >= QUESTIONS.length){
     renderResult();
