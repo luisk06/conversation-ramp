@@ -6,14 +6,14 @@ export default async function handler(req, res) {
       return res.status(405).json({ error: "Method not allowed" });
     }
 
-    // 1) Fail fast if key isn't present
+    // Fail fast if env var isn't present
     if (!process.env.OPENAI_API_KEY) {
       return res.status(500).json({
-        error: "OPENAI_API_KEY is missing. Add it in Vercel Project Settings → Environment Variables."
+        error: "OPENAI_API_KEY is missing",
+        details: "Add it in Vercel → Project Settings → Environment Variables, then redeploy."
       });
     }
 
-    // 2) Create client inside handler (safer in serverless)
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
     const { answers = [], context = "new_friend", language = "en" } = req.body || {};
@@ -34,7 +34,8 @@ handoff (1 string)
       answers,
       context,
       language,
-      goal: "help someone start a conversation smoothly and take control quickly"
+      goal: "help someone start a conversation smoothly and take control quickly",
+      constraints: { max_chars_per_line: 140 }
     };
 
     const response = await client.responses.create({
@@ -53,7 +54,7 @@ handoff (1 string)
       data = {};
     }
 
-    // 3) Always return a valid shape (prevents frontend crashes)
+    // Always return a valid shape to the browser
     const openers = Array.isArray(data.openers) ? data.openers.slice(0, 3) : null;
     const followups = Array.isArray(data.followups) ? data.followups.slice(0, 3) : null;
     const handoff = typeof data.handoff === "string" ? data.handoff : null;
@@ -76,7 +77,7 @@ handoff (1 string)
 
     return res.status(200).json({ openers, followups, handoff });
   } catch (err) {
-    // TEMP: surface details so you can see the real cause in Network → Response
+    // Debug details so you can read the exact failure in Network → Response
     return res.status(500).json({
       error: "Server error",
       details: String(err?.message || err)

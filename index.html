@@ -12,7 +12,6 @@
       --text:#e9edf7;
       --muted:#aab3c5;
       --btn:#1c2740;
-      --btn2:#1b2f24;
       --accent:#7aa2ff;
       --radius:18px;
     }
@@ -97,6 +96,16 @@
       color:rgba(170,179,197,.75);
       margin-top:6px;
     }
+    .errorBox{
+      margin-top:10px;
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.14);
+      background:rgba(255, 100, 100, 0.08);
+      color:rgba(255,255,255,.9);
+      font-size:13px;
+      line-height:1.35;
+    }
   </style>
 </head>
 
@@ -134,7 +143,7 @@ function renderStart(){
   stepPill.textContent = "8 quick taps";
   app.innerHTML = `
     <h1>Start a conversation without the awkward beginning</h1>
-    <p>Answer 8 simple A/B questions. We’ll generate a few lines in your style.  
+    <p>Answer 8 simple A/B questions. We’ll generate a few lines in your style.
     You can copy one and take the wheel immediately.</p>
     <button class="ghost" onclick="start()">Start</button>
   `;
@@ -148,7 +157,7 @@ function start(){
 
 function renderQuestion(){
   const [q,a,b] = QUESTIONS[state.step];
-  stepPill.textContent = `${state.step+1}/${QUESTIONS.length}`;
+  stepPill.textContent = `${state.step + 1}/${QUESTIONS.length}`;
   app.innerHTML = `
     <div class="q">${q}</div>
     <div class="btnRow">
@@ -163,6 +172,7 @@ function answer(choice){
   const q = QUESTIONS[state.step][0];
   state.answers.push(`${q} -> ${choice}`);
   state.step++;
+
   if(state.step >= QUESTIONS.length){
     renderResult();
   } else {
@@ -176,45 +186,70 @@ async function fetchAIResults(payload){
     headers:{ "Content-Type":"application/json" },
     body: JSON.stringify(payload)
   });
-  return await res.json();
+
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    // throw with details so we can show it in UI
+    const msg = json?.details ? `${json.error}: ${json.details}` : (json?.error || "API error");
+    throw new Error(msg);
+  }
+  return json;
 }
 
 async function renderResult(){
   stepPill.textContent = "Done";
   app.innerHTML = "<p>Generating your conversation ramp…</p>";
 
-  let data;
+  let data = {};
+  let apiError = "";
+
   try{
     data = await fetchAIResults({
       answers: state.answers,
       context: "new_friend",
       language: "en"
     });
-  } catch {
-    data = {
-      openers:["Hey — no rush, just wanted to say hi."],
-      followups:["How’s your day going?"],
-      handoff:"Your turn whenever."
-    };
+  } catch (e) {
+    apiError = String(e?.message || e);
+    data = {};
   }
+
+  // SAFE FALLBACKS (never crash)
+  const openers = Array.isArray(data.openers) ? data.openers : [
+    "Hey — no rush, but I wanted to say hi.",
+    "Quick hello 🙂 How’s your day going?",
+    "Random question: what’s something you’ve been enjoying lately?"
+  ];
+
+  const followups = Array.isArray(data.followups) ? data.followups : [
+    "What’s been on your mind lately?",
+    "Any small win recently?",
+    "What’s your current vibe today?"
+  ];
+
+  const handoff = typeof data.handoff === "string"
+    ? data.handoff
+    : "Your turn whenever — even a short reply is perfect.";
 
   app.innerHTML = `
     <h1>Your conversation ramp</h1>
 
     <div class="box mono">
       <strong>Openers</strong><br/>
-      ${data.openers.map(o=>`• ${o}`).join("<br/>")}
+      ${openers.map(o => `• ${o}`).join("<br/>")}
     </div>
 
     <div class="box mono">
       <strong>Follow-ups</strong><br/>
-      ${data.followups.map(f=>`• ${f}`).join("<br/>")}
+      ${followups.map(f => `• ${f}`).join("<br/>")}
     </div>
 
     <div class="box mono">
       <strong>Handoff</strong><br/>
-      • ${data.handoff}
+      • ${handoff}
     </div>
+
+    ${apiError ? `<div class="errorBox"><strong>API debug:</strong><br/>${apiError}</div>` : ""}
 
     <button class="ghost" onclick="start()">Try again</button>
   `;
