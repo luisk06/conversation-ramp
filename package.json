@@ -1,0 +1,12 @@
+{
+  "name": "conversation-ramp",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node api/ramp.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT"
+}
